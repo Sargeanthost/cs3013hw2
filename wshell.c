@@ -94,31 +94,31 @@ void handleCmds(char **tokenizedInput, char *line, int nArgs) {
             break;
         default:
             fileCheck(line);
-            //call execvp() here, if this fails then its not a command
+
             int pid = fork();
             int status;
             if (pid == 0) {
-                //child
-                puts("Im the child");
                 int i;
                 char *cmdArgs[MAX_CMDS];
                 for (i = 1; i < nArgs; i++){
                     cmdArgs[i-1] = tokenizedInput[i];
                 }
-                //execvp needs null terminated array
                 cmdArgs[i] = NULL;
-                //TODO wrap in -1 handler
-                execvp(cmd, cmdArgs);
-                //if else in here for wdshell could not execute
+//                puts("CMD ARGS");
+//                int count = 0;
+//                while(cmdArgs[count] != NULL){
+//                    printf("%s\n", cmdArgs[count]);
+//                    count++;
+//                }
+                if(execvp(cmd, cmdArgs) ==-1){
+                    printf("wshell: could not execute command: %s\n", cmd);
+                };
             } else if (pid > 0) {
                 pid = wait(&status);
-                printf("Im the parent of %d\n", pid);
-                //parent
             } else {
                 //-1, error, but dont quit
                 printf("wshell: could not execute command: %s\n", cmd);
             }
-            printf("REMOVETHESEWORDSwshell: could not execute command: %s\n", cmd);
     }
 }
 
