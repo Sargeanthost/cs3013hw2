@@ -100,19 +100,13 @@ void handleCmds(char **tokenizedInput, char *line, int nArgs) {
             if (pid == 0) {
                 int i;
                 char *cmdArgs[MAX_CMDS];
-                for (i = 1; i < nArgs; i++){
-                    cmdArgs[i-1] = tokenizedInput[i];
+                for (i = 0; i < nArgs; i++){
+                    cmdArgs[i] = tokenizedInput[i];
                 }
-                cmdArgs[i] = NULL;
-//                puts("CMD ARGS");
-//                int count = 0;
-//                while(cmdArgs[count] != NULL){
-//                    printf("%s\n", cmdArgs[count]);
-//                    count++;
-//                }
+                cmdArgs[nArgs] = NULL;
                 if(execvp(cmd, cmdArgs) ==-1){
                     printf("wshell: could not execute command: %s\n", cmd);
-                };
+                }
             } else if (pid > 0) {
                 pid = wait(&status);
             } else {
