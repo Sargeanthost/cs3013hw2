@@ -1,24 +1,37 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <libgen.h>
 #include <string.h>
 #include <sys/wait.h>
 
 #define MAX_CMDS 100
+#define MY_PATH_MAX 4096
+#define HISTORY_SIZE 10
+
+//TODO history only adds two commands, but has correct number of entries. problem with print loop?
+
+typedef struct history {
+    int nEntries;
+    char *lines[HISTORY_SIZE];
+} history;
 
 char *getDir();
 
 void prompt(char **);
 
+void addToHistory(history *myHistory, char *line);
+
+void printHistory(history *myHistory);
+
 void tokenize(char *, char **, int *);
 
-void handleCmds(char **, char *, int);
+void handleCmds(char **tokenizedInput, char *, int, history *myHistory);
 
 void fileCheck(char *);
 
 int main() {
+    history *myHistory = malloc(sizeof(history));
     while (1) {
         char *line = "";
         prompt(&line);
@@ -26,21 +39,21 @@ int main() {
         char *arguments[MAX_CMDS];
         int nArgs = 0;
         tokenize(line, arguments, &nArgs);
-        handleCmds(arguments, line, nArgs);
-
-        free(line);
+        handleCmds(arguments, line, nArgs, myHistory);
     }
 }
 
-void handleCmds(char **tokenizedInput, char *line, int nArgs) {
+void handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory) {
     char *cmd = tokenizedInput[0];
     int switchNum = 0;
-    int nCmds = 4;
+    int nCmds = 5;
     char *listOfCmds[nCmds];
     listOfCmds[0] = "exit";
     listOfCmds[1] = "cd";
     listOfCmds[2] = "pwd";
     listOfCmds[3] = "echo";
+    listOfCmds[4] = "history";
+    addToHistory(myHistory, line);
 
     for (int i = 0; i < nCmds; i++) {
         if (strcmp(cmd, listOfCmds[i]) == 0) {
@@ -72,7 +85,7 @@ void handleCmds(char **tokenizedInput, char *line, int nArgs) {
             }
             break;
         case 2: {
-            char cwd[PATH_MAX];
+            char cwd[MY_PATH_MAX];
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
                 fileCheck(line);
                 printf("%s\n", cwd);
@@ -88,23 +101,26 @@ void handleCmds(char **tokenizedInput, char *line, int nArgs) {
                     printf("%s ", tokenizedInput[i]);
                 }
                 printf("%s\n", tokenizedInput[nArgs - 1]);
-            } else {//echo nothing
+            } else {
                 puts("");
             }
             break;
+        case 4:
+            fileCheck(line);
+            printHistory(myHistory);
+            break;
         default:
             fileCheck(line);
-
             int pid = fork();
             int status;
             if (pid == 0) {
                 int i;
                 char *cmdArgs[MAX_CMDS];
-                for (i = 0; i < nArgs; i++){
+                for (i = 0; i < nArgs; i++) {
                     cmdArgs[i] = tokenizedInput[i];
                 }
                 cmdArgs[nArgs] = NULL;
-                if(execvp(cmd, cmdArgs) ==-1){
+                if (execvp(cmd, cmdArgs) == -1) {
                     printf("wshell: could not execute command: %s\n", cmd);
                 }
             } else if (pid > 0) {
@@ -148,7 +164,7 @@ void prompt(char **lineBuf) {
 }
 
 char *getDir() {
-    char cwd[PATH_MAX];
+    char cwd[MY_PATH_MAX];
     char *baseName = "";
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         baseName = basename(cwd);
@@ -156,4 +172,18 @@ char *getDir() {
         perror("getcwd() error");
     }
     return baseName;
+}
+
+void addToHistory(history *myHistory, char *line) {
+    for (int i = HISTORY_SIZE - 2; i >= 0; i--) {
+        myHistory->lines[i + 1] = myHistory->lines[i];
+    }
+    myHistory->lines[0] = line;
+    myHistory->nEntries += 1;
+}
+
+void printHistory(history *myHistory) {
+    for (int i = myHistory->nEntries - 1; i >= 0; i--) {
+        printf("%s\n", myHistory->lines[i]);
+    }
 }
