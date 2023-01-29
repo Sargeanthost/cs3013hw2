@@ -30,6 +30,8 @@ void handleCmds(char **tokenizedInput, char *, int, history *myHistory);
 
 void fileCheck(char *);
 
+void parseShellOperator(char *pString[], int);
+
 int main() {
     history *myHistory = malloc(sizeof(history));
     while (1) {
@@ -39,10 +41,12 @@ int main() {
         char *arguments[MAX_CMDS];
         int nArgs = 0;
         tokenize(line, arguments, &nArgs);
+        parseShellOperator(arguments, nArgs);
         handleCmds(arguments, line, nArgs, myHistory);
     }
 }
 
+//make this return exit code, switch error handling to parent parsing function.
 void handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory) {
     char *cmd = tokenizedInput[0];
     int switchNum = 0;
@@ -179,11 +183,40 @@ void addToHistory(history *myHistory, char *line) {
         myHistory->lines[i + 1] = myHistory->lines[i];
     }
     myHistory->lines[0] = line;
-    myHistory->nEntries += 1;
+    if (myHistory->nEntries != 10) {
+        myHistory->nEntries += 1;
+    }
 }
 
 void printHistory(history *myHistory) {
     for (int i = myHistory->nEntries - 1; i >= 0; i--) {
         printf("%s\n", myHistory->lines[i]);
     }
+}
+
+//doesn't need to support >1 op. This function handles dispatching to handleCmds.
+void parseShellOperator(char *tokenizedInput[], int nCmds){
+    //first pointer saved will be the op
+    char *and = "&&";
+    char *or = "||";
+    char *background = "&";
+    //will be null unless op is found
+    char *op = NULL;
+    int opType = -1;
+    for (int i = 0; i < nCmds; i++) {
+        if ((strcmp(and, tokenizedInput[i]) == 0) || ) {
+            op = (char *)&tokenizedInput[i];
+            opType = 0;
+            break;
+        } else if (strcmp(or, tokenizedInput[i]) == 0){
+            op = (char *)&tokenizedInput[i];
+            opType = 1;
+            break;
+        } else if (strcmp(background,tokenizedInput[i]) == 0){
+            op = (char *)&tokenizedInput[i];
+            opType = 2;
+            break;
+        }
+    }
+    if ()
 }
