@@ -35,7 +35,7 @@ void fileCheck(char *);
 
 void parseShellOperator(char **tokenizedInput, char *, int, history *myHistory);
 
-void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int indexOfOp);
+void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int indexOfOp, int *destArgs);
 
 int main() {
     history *myHistory = malloc(sizeof(history));
@@ -132,18 +132,15 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
                 }
                 cmdArgs[nArgs] = NULL;
                 if (execvp(cmd, cmdArgs) == -1) {
-                    printf("wshell: could not execute command1: %s\n", cmd);
-                    exit(7);
+                    printf("wshell: could not execute command: %s\n", cmd);
+                    exit(1);
                 }
             }
             int status;
             waitpid(-1, &status, 0);
-            printf("status: %d\n", status);
-            printf("exited normally? %d\n", WIFEXITED(status));
-            printf("status? %d\n", WEXITSTATUS(status));//i think its this one
+            returnNumber = WEXITSTATUS(status);// think its this one
 
     }
-    printf("Return number: %d\n", returnNumber);
     return returnNumber;
 }
 
@@ -229,27 +226,26 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         }
     }
 
-    printf("opindex = %d\n", opIndex);
-    //double check, the scratch file only works with i-args-1, but this works without the -1
-
     if (opType == 0) {
         //and = only if first one succeeds, call second.
         char *leftDest[MAX_CMDS] = {NULL};
         char *rightDest[MAX_CMDS] = {NULL};
-
-        halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex);
-        if (handleCmds(leftDest, line, nCmds, myHistory) != 1) {
-            handleCmds(rightDest, line, nCmds, myHistory);
+        int rightArgs = 0;
+        halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
+        int leftArgs = nCmds - rightArgs - 1;
+        if (handleCmds(leftDest, line, leftArgs, myHistory) != 1) {
+            handleCmds(rightDest, line, rightArgs, myHistory);
         }
     } else if (opType == 1) {
         //or = only if first one fails, call second
         char *leftDest[MAX_CMDS] = {NULL};
         char *rightDest[MAX_CMDS] = {NULL};
+        int rightArgs = 0;
 
-        halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex);
-
-        if (handleCmds(leftDest, line, nCmds, myHistory) == 1) {
-            handleCmds(rightDest, line, nCmds, myHistory);
+        halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
+        int leftArgs = nCmds - rightArgs - 1;
+        if (handleCmds(leftDest, line, leftArgs, myHistory) == 1) {
+            handleCmds(rightDest, line, rightArgs, myHistory);
         }
     } else if (opType == 2) {
 //        background
@@ -257,31 +253,15 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
     } else {
         handleCmds(tokenizedInput, line, nCmds, myHistory);
     }
-
 }
 
-void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int indexOfOp) {
-//{pwd && echo hi}
-//ncmds = 4
-//index of op = 1
-//dest ars = 4 - 1 - 1 = 2
-//leftdest = {pwd}
-//rightdest = {echo hi}
-
-    int destArgs = nCmds - indexOfOp - 1;
+void halfinator(char *leftDest[], char *rightDest[], char *src[], int totalArgs, int indexOfOp, int *destArgs) {
+    *destArgs = totalArgs - indexOfOp - 1;
+    int destCount = 0;
     for (int i = 0; i < indexOfOp; i++) {
         leftDest[i] = src[i];
     }
-    for (int i = indexOfOp + 1; i < nCmds; i++) {
-        //i = 1+1 = 2
-        //while 2 < 4:
-        rightDest[i - destArgs] = src[i];
-        //2-2-1
-    }
-    for (int i = 0; i < indexOfOp; i++) {
-        printf("left dest: %d is %s\n", i, leftDest[i]);
-    }
-    for (int i = 0; i < destArgs; i++) {
-        printf("right dest: %d is %s\n", i, rightDest[i]);
+    for (int i = indexOfOp + 1; i < totalArgs; i++) {
+        rightDest[destCount++] = src[i];
     }
 }
