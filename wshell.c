@@ -8,6 +8,9 @@
 #define MAX_CMDS 100
 #define MY_PATH_MAX 4096
 #define HISTORY_SIZE 10
+#define AND "&&"
+#define OR "||"
+#define BACKGROUND "&"
 
 //TODO history only adds two commands, but has correct number of entries. problem with print loop?
 
@@ -123,9 +126,8 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             break;
         default: //extern: will fail
             fileCheck(line);
-            int pid = fork();
-            int status;
-            if (pid == 0) {
+//            int pid = fork();
+            if (fork() == 0) {
                 int i;
                 char *cmdArgs[MAX_CMDS];
                 for (i = 0; i < nArgs; i++) {
@@ -134,18 +136,27 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
                 cmdArgs[nArgs] = NULL;
                 if (execvp(cmd, cmdArgs) == -1) {
                     printf("wshell: could not execute command1: %s\n", cmd);
+                    exit(7);
                     //if this is reached exit wont work...
-                    returnNumber = 1;
+                    //use a macro
                 }
-            } else if (pid > 0) {
-                pid = wait(&status);
-            } else {
-                //-1, error, but dont quit
-                printf("wshell: could not execute command2: %s\n", cmd);
             }
+            int status;
+            waitpid(-1, &status, 0);
+            printf("status: %d\n", status);
+            printf("exited normally? %d\n", WIFEXITED(status));
+            printf("status? %d\n", WEXITSTATUS(status));
+
     }
+    printf("Return number: %d\n", returnNumber);
     return returnNumber;
 }
+
+//loan
+//thetha join more than 10000
+//account
+//theta join less than 100
+//join and project cust name
 
 void fileCheck(char *line) {
     if ((!isatty(fileno(stdin)))) {
@@ -210,34 +221,33 @@ void printHistory(history *myHistory) {
 void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *myHistory) {
     //first pointer saved will be the op
     //doesnt check if silly person appends command to the end for || and &&.
-    char *and = "&&";
-    char *or = "||";
-    char *background = "&";
     //will be null unless op is found
     int opType = -1;
     int opIndex = -1;
     for (int i = 0; i < nCmds; i++) {
-        if ((strcmp(and, tokenizedInput[i]) == 0)) {
+        if ((strcmp(AND, tokenizedInput[i]) == 0)) {
             opType = 0;
             opIndex = i;
             break;
-        } else if (strcmp(or, tokenizedInput[i]) == 0) {
+        } else if (strcmp(OR, tokenizedInput[i]) == 0) {
             opType = 1;
             opIndex = i;
             break;
-        } else if (strcmp(background, tokenizedInput[i]) == 0) {
+        } else if (strcmp(BACKGROUND, tokenizedInput[i]) == 0) {
             opType = 2;
             opIndex = i;
             break;
         }
     }
 
+    printf("opindex = %d\n", opIndex);
+
     if (opType == 0) {
+        //and = only if first one succeeds, call second.
         char *leftDest[MAX_CMDS] = {NULL};
         char *rightDest[MAX_CMDS] = {NULL};
 
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex);
-        //and = only if first one succeeds, call second.
         if (handleCmds(leftDest, line, nCmds, myHistory) != 1) {
             handleCmds(rightDest, line, nCmds, myHistory);
         }
@@ -262,11 +272,28 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
 }
 
 void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int indexOfOp) {
+//{pwd && echo hi}
+//ncmds = 4
+//index of op = 1
+//dest ars = 4 - 1 - 1 = 2
+//leftdest = {pwd}
+//rightdest = {echo hi}
+
     int destArgs = nCmds - indexOfOp - 1;
     for (int i = 0; i < indexOfOp; i++) {
         leftDest[i] = src[i];
     }
     for (int i = indexOfOp + 1; i < nCmds; i++) {
-        rightDest[i - destArgs - 1] = src[i];
+        //i = 1+1 = 2
+        //while 2 < 4:
+        rightDest[i - destArgs] = src[i];
+        //2-2-1
     }
+    for (int i = 0; i < indexOfOp; i++) {
+        printf("left dest: %d is %s\n", i, leftDest[i]);
+    }
+    for (int i = 0; i < destArgs; i++) {
+        printf("right dest: %d is %s\n", i, rightDest[i]);
+    }
+
 }
