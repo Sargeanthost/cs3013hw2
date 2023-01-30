@@ -47,7 +47,6 @@ int main() {
         int nArgs = 0;
         tokenize(line, arguments, &nArgs);
         parseShellOperator(arguments, line, nArgs, myHistory);
-//        handleCmds(arguments, line, nArgs, myHistory);
     }
 }
 
@@ -73,7 +72,7 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
     }
 
     switch (switchNum) {
-        case 0: //exit
+        case 0:
             fileCheck(line);
             exit(0);
         case 1: //cd, will fail
@@ -105,7 +104,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             } else {
                 perror("getcwd() error");
                 //program exits, return number has no effect
-//                returnNumber = 1;
             }
             break;
         }
@@ -126,7 +124,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             break;
         default: //extern: will fail
             fileCheck(line);
-//            int pid = fork();
             if (fork() == 0) {
                 int i;
                 char *cmdArgs[MAX_CMDS];
@@ -137,26 +134,18 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
                 if (execvp(cmd, cmdArgs) == -1) {
                     printf("wshell: could not execute command1: %s\n", cmd);
                     exit(7);
-                    //if this is reached exit wont work...
-                    //use a macro
                 }
             }
             int status;
             waitpid(-1, &status, 0);
             printf("status: %d\n", status);
             printf("exited normally? %d\n", WIFEXITED(status));
-            printf("status? %d\n", WEXITSTATUS(status));
+            printf("status? %d\n", WEXITSTATUS(status));//i think its this one
 
     }
     printf("Return number: %d\n", returnNumber);
     return returnNumber;
 }
-
-//loan
-//thetha join more than 10000
-//account
-//theta join less than 100
-//join and project cust name
 
 void fileCheck(char *line) {
     if ((!isatty(fileno(stdin)))) {
@@ -241,6 +230,7 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
     }
 
     printf("opindex = %d\n", opIndex);
+    //double check, the scratch file only works with i-args-1, but this works without the -1
 
     if (opType == 0) {
         //and = only if first one succeeds, call second.
@@ -259,7 +249,6 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex);
 
         if (handleCmds(leftDest, line, nCmds, myHistory) == 1) {
-            //call wshell command not found only for second input. first one just gets ignored
             handleCmds(rightDest, line, nCmds, myHistory);
         }
     } else if (opType == 2) {
@@ -295,5 +284,4 @@ void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int
     for (int i = 0; i < destArgs; i++) {
         printf("right dest: %d is %s\n", i, rightDest[i]);
     }
-
 }
