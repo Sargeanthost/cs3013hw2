@@ -73,7 +73,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
 
     switch (switchNum) {
         case 0:
-            fileCheck(line);
             exit(0);
         case 1: //cd, will fail
             if (nArgs == 1) {
@@ -81,16 +80,13 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
                     puts("wshell: cd: home: No such file or directory");
                     returnNumber = 1;
                 }
-                fileCheck(line);
                 break;
             } else if (nArgs == 2) { //correct
-                fileCheck(line);
                 if (chdir(tokenizedInput[1]) != 0) {
                     printf("wshell: no such directory: %s\n", tokenizedInput[1]);
                     returnNumber = 1;
                 }
             } else if (nArgs > 2) {
-                fileCheck(line);
                 puts("wshell: cd: too many arguments");
                 returnNumber = 1;
                 break;
@@ -99,7 +95,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
         case 2: { //pwd: will never fail*
             char cwd[MY_PATH_MAX];
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                fileCheck(line);
                 printf("%s\n", cwd);
             } else {
                 perror("getcwd() error");
@@ -108,7 +103,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             break;
         }
         case 3: //echo: will never fail
-            fileCheck(line);
             if (nArgs > 1) {
                 for (int i = 1; i < nArgs - 1; i++) {
                     printf("%s ", tokenizedInput[i]);
@@ -119,11 +113,9 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             }
             break;
         case 4: //history: will never fail
-            fileCheck(line);
             printHistory(myHistory);
             break;
         default: //extern: will fail
-            fileCheck(line);
             if (fork() == 0) {
                 int i;
                 char *cmdArgs[MAX_CMDS];
@@ -139,7 +131,6 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
             int status;
             waitpid(-1, &status, 0);
             returnNumber = WEXITSTATUS(status);// think its this one
-
     }
     return returnNumber;
 }
@@ -205,6 +196,7 @@ void printHistory(history *myHistory) {
 //doesn't need to support >1 op. This function handles dispatching to handleCmds.
 //char **tokenizedInput, char *, int, history *myHistory
 void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *myHistory) {
+    fileCheck(line);
     //first pointer saved will be the op
     //doesnt check if silly person appends command to the end for || and &&.
     //will be null unless op is found
@@ -234,7 +226,9 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
         if (handleCmds(leftDest, line, leftArgs, myHistory) != 1) {
-            handleCmds(rightDest, line, rightArgs, myHistory);
+            //so it doesnt double
+            history *temp = malloc(sizeof(history));
+            handleCmds(rightDest, line, rightArgs, temp);
         }
     } else if (opType == 1) {
         //or = only if first one fails, call second
@@ -245,7 +239,8 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
         if (handleCmds(leftDest, line, leftArgs, myHistory) == 1) {
-            handleCmds(rightDest, line, rightArgs, myHistory);
+            history *temp = malloc(sizeof(history));
+            handleCmds(rightDest, line, rightArgs, temp);
         }
     } else if (opType == 2) {
 //        background
