@@ -33,17 +33,18 @@ int handleCmds(char **tokenizedInput, char *, int, history *myHistory);
 
 void fileCheck(char *);
 
-void parseShellOperator(char **tokenizedInput, char *, int, history *myHistory, int pidArray[]);
+void parseShellOperator(char **tokenizedInput, char *, int, history *myHistory, int pidArray[], char *bgCmdArr[]);
 
 void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int indexOfOp, int *destArgs);
 
-void background(int pidArray[], char *line, char *cmds[], int nCmds, history *myHistory);
+void background(int pidArray[], char *line, char *cmds[], int nCmds, history *myHistory, char *bgCmdArr[]);
 
 int currPidCount = 0;
 
 int main() {
     history *myHistory = malloc(sizeof(history));
     int pidArray[255] = {0};
+    char *bgCmdArr[255] = {NULL};
     while (1) {
         char *line = "";
         prompt(&line);
@@ -51,7 +52,7 @@ int main() {
         char *arguments[MAX_CMDS];
         int nArgs = 0;
         tokenize(line, arguments, &nArgs);
-        parseShellOperator(arguments, line, nArgs, myHistory, pidArray);
+        parseShellOperator(arguments, line, nArgs, myHistory, pidArray, bgCmdArr);
     }
 }
 
@@ -209,7 +210,8 @@ void printHistory(history *myHistory) {
 
 //doesn't need to support >1 op. This function handles dispatching to handleCmds.
 //char **tokenizedInput, char *, int, history *myHistory
-void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *myHistory, int pidArray[]) {
+void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *myHistory, int pidArray[],
+                        char *bgCmdArr[]) {
     fileCheck(line);
     //first pointer saved will be the op
     //doesnt check if silly person appends command to the end for || and &&.
@@ -263,7 +265,7 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         unsigned long backgroundLineLen = strlen(line) - 2; //space and &
         char *backgroundLine = strdup(line);
         backgroundLine[backgroundLineLen] = '\0';
-        for(int i = 0; i < nCmds-1; i++){
+        for (int i = 0; i < nCmds - 1; i++) {
             backgroundCmds[i] = tokenizedInput[i];
         }
 //        printf("line: %s\n", backgroundLine);
@@ -272,7 +274,7 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
 //        }
 //        puts("");
 
-        background(pidArray, backgroundLine, backgroundCmds,nCmds - 1, myHistory);
+        background(pidArray, backgroundLine, backgroundCmds, nCmds - 1, myHistory, bgCmdArr);
     } else {
         handleCmds(tokenizedInput, line, nCmds, myHistory);
     }
@@ -289,19 +291,21 @@ void halfinator(char *leftDest[], char *rightDest[], char *src[], int totalArgs,
     }
 }
 
-void background(int pidArray[], char *line, char *cmds[], int nCmds, history *myHistory) {
+void background(int pidArray[], char *line, char *cmds[], int nCmds, history *myHistory, char *bgCmdArr[]) {
     //if you want this to work with && and || have a function call before parsecmds that sets a boolean
     //and strips the and off, and then calls parse args.
     int childPid = fork();
+    printf("[%d]\n", currPidCount +1);
     if (childPid == 0) {
-        printf("[%d]", currPidCount);
         handleCmds(cmds, line, nCmds, myHistory);
-        printf("[%d] Done: %s", currPidCount);
+        printf("[%d] Done: %s\n", currPidCount);
         //remove from job list
     } else if (childPid != -1) {
-        pidArray[currPidCount] = childPid;
+        pidArray[currPidCount] = childPid + 1;
+        bgCmdArr[currPidCount] = line;
         currPidCount = (currPidCount + 1) % 255;
     } else {
         perror("fork background"); /* fork failed */
     }
 }
+
