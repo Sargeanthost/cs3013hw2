@@ -39,7 +39,11 @@ void halfinator(char *leftDest[], char *rightDest[], char *src[], int nCmds, int
 
 void background(int pidArray[], char *line, char *cmds[], int nCmds, history *myHistory, char *bgCmdArr[]);
 
+void checkRunning(int pidArray[], char *bgCmdArr[]);
+
 int currPidCount = 0;
+
+int statusArray[255] = {0};
 
 int main() {
     history *myHistory = malloc(sizeof(history));
@@ -47,6 +51,7 @@ int main() {
     char *bgCmdArr[255] = {NULL};
     while (1) {
         char *line = "";
+        checkRunning(pidArray, bgCmdArr);
         prompt(&line);
 
         char *arguments[MAX_CMDS];
@@ -129,11 +134,13 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory,
             break;
         case 6:
             //job
-            for (int i = 0; i < 255; i++) {
-                if (pidArray[i] < 100000000) {
-                    printf("%d: %d\n", i, pidArray[i]);
-                }
-            }
+//            for (int i = 0; i < 255; i++) {
+//                if (pidArray[i] < 100000000) {
+//                    int status;
+//                    waitpid(pidArray[])
+//                    printf("%d: %d\n", i, pidArray[i]);
+//                }
+//            }
             break;
         default: { //extern: will fail
             int pid = fork();
@@ -309,25 +316,34 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
 //    int realTemp = 0;
 //    int *pRealTemp = &realTemp;
     if (childPid == 0) {
-        int temp = currPidCount;
+//        int temp = currPidCount;
 //        *pRealTemp = 1;
 //        printf("Temp1: %d\n", realTemp);
         handleCmds(cmds, line, nCmds, myHistory, pidArray);
-        printf("\n[%d] Done: %s\n", (currPidCount + 1), line);
-        //remove from job list
-        pidArray[temp] = 100000000;
+//        printf("\n[%d] Done: %s\n", (currPidCount + 1), line);
+//        //remove from job list
+//        pidArray[temp] = 100000000;
     } else if (childPid != -1) {
         printf("[%d]\n", (currPidCount + 1));
 //    printf("Temp1.5: %d\n", realTemp);
         waitpid(childPid, &status, WNOHANG);
 //    printf("Temp2: %d\n", realTemp);
         pidArray[currPidCount] = childPid;
+        statusArray[currPidCount] = 1;
         bgCmdArr[currPidCount] = line;
         currPidCount = (currPidCount + 1) % 255;
-        printf("%s\n", WIFEXITED(status));
     } else {
-        perror("fork background"); /* fork failed */
+        perror("fork background");
     }
-//    printf("Temp3: %d\n", realTemp);
 }
 
+void checkRunning(int pidArray[], char *bgCmdArr[]){
+    for(int i = 0; i < 255; i++){
+        int status;
+        waitpid(pidArray[i], &status,  1);
+        if(WIFEXITED(status)){
+            statusArray[i] = 0;
+            printf("[%d] Done: %s\n", (pidArray[i] +1), bgCmdArr[i]);
+        }
+    }
+}
