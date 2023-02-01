@@ -312,38 +312,38 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
     //if you want this to work with && and || have a function call before parsecmds that sets a boolean
     //and strips the and off, and then calls parse args.
     int childPid = fork();
-    int status;
-//    int realTemp = 0;
-//    int *pRealTemp = &realTemp;
+//    int status;
+
     if (childPid == 0) {
-//        int temp = currPidCount;
-//        *pRealTemp = 1;
-//        printf("Temp1: %d\n", realTemp);
         handleCmds(cmds, line, nCmds, myHistory, pidArray);
-//        printf("\n[%d] Done: %s\n", (currPidCount + 1), line);
-//        //remove from job list
-//        pidArray[temp] = 100000000;
     } else if (childPid != -1) {
         printf("[%d]\n", (currPidCount + 1));
-//    printf("Temp1.5: %d\n", realTemp);
-        waitpid(childPid, &status, WNOHANG);
-//    printf("Temp2: %d\n", realTemp);
+//        waitpid(childPid, &status, WNOHANG);
+
         pidArray[currPidCount] = childPid;
         statusArray[currPidCount] = 1;
         bgCmdArr[currPidCount] = line;
+
         currPidCount = (currPidCount + 1) % 255;
     } else {
         perror("fork background");
     }
 }
 
-void checkRunning(int pidArray[], char *bgCmdArr[]){
-    for(int i = 0; i < 255; i++){
-        int status;
-        waitpid(pidArray[i], &status,  1);
-        if(WIFEXITED(status)){
-            statusArray[i] = 0;
-            printf("[%d] Done: %s\n", (pidArray[i] +1), bgCmdArr[i]);
+void checkRunning(int pidArray[], char *bgCmdArr[]) {
+    for (int i = 0; i < 255; i++) {
+//        int status;
+//        waitpid(pidArray[i], &status,  WNOHANG);
+//        if(WIFEXITED(status) && statusArray[i] == 1){
+//            statusArray[i] = 0;
+//            printf("[%d] Done: %s\n", (pidArray[i] +1), bgCmdArr[i]);
+//        }
+        if (statusArray[i] == 1) {
+
+            printf("%d\n", i + 1);
+            int status;
+            waitpid(pidArray[i], &status, WNOHANG);
+            printf("w exit %d %d\n", i + 1, WIFEXITED(status));
         }
     }
 }
