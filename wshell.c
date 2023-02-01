@@ -29,7 +29,7 @@ void printHistory(history *myHistory);
 
 void tokenize(char *, char **, int *);
 
-int handleCmds(char **tokenizedInput, char *, int, history *myHistory, int pidArray[]);
+int handleCmds(char **tokenizedInput, char *, int, history *myHistory, int pidArray[], int background);
 
 void fileCheck(char *);
 
@@ -62,7 +62,7 @@ int main() {
 }
 
 //make this return exit code, switch error handling to parent parsing function.
-int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory, int pidArray[]) {
+int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory, int pidArray[], int background) {
     char *cmd = tokenizedInput[0];
     int returnNumber = 0;
     int switchNum = 0;
@@ -157,9 +157,11 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory,
                 }
             } else {
                 int status;
-                waitpid(pid, &status, 0);
+                if (!background) {
+                    waitpid(pid, &status, 0);
 //                printf("pid: %d\n", pid);
-                returnNumber = WEXITSTATUS(status);// think its this one
+                    returnNumber = WEXITSTATUS(status);// think its this one
+                }
             }
         }
     }
@@ -257,10 +259,10 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         int rightArgs = 0;
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
-        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray) != 1) {
+        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray, 0) != 1) {
             //so it doesnt double
             history *temp = malloc(sizeof(history));
-            handleCmds(rightDest, line, rightArgs, temp, pidArray);
+            handleCmds(rightDest, line, rightArgs, temp, pidArray, 0);
         }
     } else if (opType == 1) {
         //or = only if first one fails, call second
@@ -270,9 +272,9 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
 
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
-        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray) == 1) {
+        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray, 0) == 1) {
             history *temp = malloc(sizeof(history));
-            handleCmds(rightDest, line, rightArgs, temp, pidArray);
+            handleCmds(rightDest, line, rightArgs, temp, pidArray, 0);
         }
     } else if (opType == 2) {
         //pidArray holds all running and have run pids. (index + 1) is job number. backCmds is the string asscociated with
@@ -284,16 +286,9 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         for (int i = 0; i < nCmds - 1; i++) {
             backgroundCmds[i] = tokenizedInput[i];
         }
-//        printf("line: %s\n", backgroundLine);
-//        for(int i = 0; i < nCmds-1; i++){
-//            printf("%s ",backgroundLine[i]);
-//        }
-//        puts("");
-//        printf("Line: %s\n", backgroundLine);
-
         background(pidArray, backgroundLine, backgroundCmds, nCmds - 1, myHistory, bgCmdArr);
     } else {
-        handleCmds(tokenizedInput, line, nCmds, myHistory, pidArray);
+        handleCmds(tokenizedInput, line, nCmds, myHistory, pidArray, 0);
     }
 }
 
@@ -312,19 +307,17 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
     //if you want this to work with && and || have a function call before parsecmds that sets a boolean
     //and strips the and off, and then calls parse args.
     int childPid = fork();
-//    int status;
 
     if (childPid == 0) {
-        handleCmds(cmds, line, nCmds, myHistory, pidArray);
+        handleCmds(cmds, line, nCmds, myHistory, pidArray, 1);
     } else if (childPid != -1) {
         printf("[%d]\n", (currPidCount + 1));
-//        waitpid(childPid, &status, WNOHANG);
 
         pidArray[currPidCount] = childPid;
         statusArray[currPidCount] = 1;
         bgCmdArr[currPidCount] = line;
 
-        currPidCount = (currPidCount + 1) % 255;
+        currPidCount = currPidCount + 1;
     } else {
         perror("fork background");
     }
@@ -332,18 +325,11 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
 
 void checkRunning(int pidArray[], char *bgCmdArr[]) {
     for (int i = 0; i < 255; i++) {
-//        int status;
-//        waitpid(pidArray[i], &status,  WNOHANG);
-//        if(WIFEXITED(status) && statusArray[i] == 1){
-//            statusArray[i] = 0;
-//            printf("[%d] Done: %s\n", (pidArray[i] +1), bgCmdArr[i]);
-//        }
-        if (statusArray[i] == 1) {
-
-            printf("%d\n", i + 1);
-            int status;
-            waitpid(pidArray[i], &status, WNOHANG);
-            printf("w exit %d %d\n", i + 1, WIFEXITED(status));
+        int status;
+        waitpid(pidArray[i], &status, WNOHANG);
+        if (WEXITSTATUS(status) && statusArray[i] == 1) {
+            statusArray[i] = 0;
+            printf("[%d] Done: %s\n", (i + 1), bgCmdArr[i]);
         }
     }
 }
