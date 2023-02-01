@@ -29,7 +29,7 @@ void printHistory(history *myHistory);
 
 void tokenize(char *, char **, int *);
 
-int handleCmds(char **tokenizedInput, char *, int, history *myHistory);
+int handleCmds(char **tokenizedInput, char *, int, history *myHistory, int pidArray[]);
 
 void fileCheck(char *);
 
@@ -43,7 +43,7 @@ int currPidCount = 0;
 
 int main() {
     history *myHistory = malloc(sizeof(history));
-    int pidArray[255] = {0};
+    int pidArray[255] = {[0 ... 254] =100000000};//cant use 0, has special meaning; gcc only initilizatoin
     char *bgCmdArr[255] = {NULL};
     while (1) {
         char *line = "";
@@ -57,17 +57,19 @@ int main() {
 }
 
 //make this return exit code, switch error handling to parent parsing function.
-int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory) {
+int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory, int pidArray[]) {
     char *cmd = tokenizedInput[0];
     int returnNumber = 0;
     int switchNum = 0;
-    int nCmds = 5;
+    int nCmds = 7;
     char *listOfCmds[nCmds];
     listOfCmds[0] = "exit";
     listOfCmds[1] = "cd";
     listOfCmds[2] = "pwd";
     listOfCmds[3] = "echo";
     listOfCmds[4] = "history";
+    listOfCmds[5] = "kill";
+    listOfCmds[6] = "jobs";
     addToHistory(myHistory, line);
 
     for (int i = 0; i < nCmds; i++) {
@@ -124,8 +126,15 @@ int handleCmds(char **tokenizedInput, char *line, int nArgs, history *myHistory)
         case 5:
             //kill
 //            printf("wshell: no such background job: %d", job);
+            break;
         case 6:
             //job
+            for (int i = 0; i < 255; i++) {
+                if (pidArray[i] < 100000000) {
+                    printf("%d: %d\n", i, pidArray[i]);
+                }
+            }
+            break;
         default: { //extern: will fail
             int pid = fork();
             if (pid == 0) {
@@ -241,10 +250,10 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
         int rightArgs = 0;
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
-        if (handleCmds(leftDest, line, leftArgs, myHistory) != 1) {
+        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray) != 1) {
             //so it doesnt double
             history *temp = malloc(sizeof(history));
-            handleCmds(rightDest, line, rightArgs, temp);
+            handleCmds(rightDest, line, rightArgs, temp, pidArray);
         }
     } else if (opType == 1) {
         //or = only if first one fails, call second
@@ -254,9 +263,9 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
 
         halfinator(leftDest, rightDest, tokenizedInput, nCmds, opIndex, &rightArgs);
         int leftArgs = nCmds - rightArgs - 1;
-        if (handleCmds(leftDest, line, leftArgs, myHistory) == 1) {
+        if (handleCmds(leftDest, line, leftArgs, myHistory, pidArray) == 1) {
             history *temp = malloc(sizeof(history));
-            handleCmds(rightDest, line, rightArgs, temp);
+            handleCmds(rightDest, line, rightArgs, temp, pidArray);
         }
     } else if (opType == 2) {
         //pidArray holds all running and have run pids. (index + 1) is job number. backCmds is the string asscociated with
@@ -273,10 +282,11 @@ void parseShellOperator(char *tokenizedInput[], char *line, int nCmds, history *
 //            printf("%s ",backgroundLine[i]);
 //        }
 //        puts("");
+//        printf("Line: %s\n", backgroundLine);
 
         background(pidArray, backgroundLine, backgroundCmds, nCmds - 1, myHistory, bgCmdArr);
     } else {
-        handleCmds(tokenizedInput, line, nCmds, myHistory);
+        handleCmds(tokenizedInput, line, nCmds, myHistory, pidArray);
     }
 }
 
@@ -295,17 +305,28 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
     //if you want this to work with && and || have a function call before parsecmds that sets a boolean
     //and strips the and off, and then calls parse args.
     int childPid = fork();
-    printf("[%d]\n", currPidCount +1);
+    int status;
+//    int realTemp = 0;
+//    int *pRealTemp = &realTemp;
     if (childPid == 0) {
-        handleCmds(cmds, line, nCmds, myHistory);
-        printf("[%d] Done: %s\n", currPidCount);
+        int temp = currPidCount;
+//        *pRealTemp = 1;
+//        printf("Temp1: %d\n", realTemp);
+        handleCmds(cmds, line, nCmds, myHistory, pidArray);
+        printf("\n[%d] Done: %s\n", (currPidCount + 1), line);
         //remove from job list
+        pidArray[temp] = 100000000;
     } else if (childPid != -1) {
-        pidArray[currPidCount] = childPid + 1;
+        printf("[%d]\n", (currPidCount + 1));
+//    printf("Temp1.5: %d\n", realTemp);
+        waitpid(childPid, &status, -1);
+//    printf("Temp2: %d\n", realTemp);
+        pidArray[currPidCount] = childPid;
         bgCmdArr[currPidCount] = line;
         currPidCount = (currPidCount + 1) % 255;
     } else {
         perror("fork background"); /* fork failed */
     }
+//    printf("Temp3: %d\n", realTemp);
 }
 
