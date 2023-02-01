@@ -319,11 +319,12 @@ void background(int pidArray[], char *line, char *cmds[], int nCmds, history *my
     } else if (childPid != -1) {
         printf("[%d]\n", (currPidCount + 1));
 //    printf("Temp1.5: %d\n", realTemp);
-        waitpid(childPid, &status, -1);
+        waitpid(childPid, &status, WNOHANG);
 //    printf("Temp2: %d\n", realTemp);
         pidArray[currPidCount] = childPid;
         bgCmdArr[currPidCount] = line;
         currPidCount = (currPidCount + 1) % 255;
+        printf("%s\n", WIFEXITED(status));
     } else {
         perror("fork background"); /* fork failed */
     }
